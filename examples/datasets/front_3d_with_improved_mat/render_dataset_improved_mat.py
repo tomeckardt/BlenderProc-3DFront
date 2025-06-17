@@ -10,6 +10,7 @@ import signal
 from contextlib import contextmanager
 import blenderproc.python.renderer.RendererUtility as RendererUtility
 from time import time
+import traceback
 
 # import pydevd_pycharm
 # pydevd_pycharm.settrace('localhost', port=12345, stdoutToServer=True, stderrToServer=True)
@@ -126,7 +127,7 @@ if __name__ == '__main__':
                 np.save(str(cam_intrinsic_path), cam_K)
 
             # read 3d future model info
-            with open(future_folder.joinpath('model_info_revised.json'), 'r') as f:
+            with open('examples/datasets/front_3d_with_improved_mat/model_info_revised.json', 'r') as f:
                 model_info_data = json.load(f)
             model_id_to_label = {m["model_id"]: m["category"].lower().replace(" / ", "/") if m["category"] else 'others' for
                                  m in
@@ -253,6 +254,7 @@ if __name__ == '__main__':
             file.write(scene_name + "\n")
         sys.exit(0)
     except Exception as e:
+        print(''.join(traceback.format_exception(type(e), e, e.__traceback__)))
         print('Failed scene name: %s.' % scene_name)
         with open(failed_scene_name_file, 'a') as file:
             file.write(scene_name + "\n")

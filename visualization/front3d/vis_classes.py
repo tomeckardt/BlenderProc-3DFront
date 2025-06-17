@@ -9,31 +9,14 @@ from PIL import Image, ImageDraw, ImageFont
 from typing import List, Union
 from visualization.utils.tools import binary_mask_to_polygon
 import cv2
+import open3d as o3d
+import rerun as rr
 
 from visualization.vis_base import VIS_BASE
 from visualization.front3d.tools.threed_front_scene import rotation_matrix
 
 
 golden = (1 + 5 ** 0.5) / 2
-
-def read_3dfront_obj2vtk(instance):
-    '''Read and transform mesh from 3d front to vtk'''
-    '''Read mesh to vtk'''
-    vtk_object = vtk.vtkOBJReader()
-    vtk_object.SetFileName(instance.raw_model_path)
-    vtk_object.Update()
-
-    '''Transform mesh'''
-    # get points from object
-    polydata = vtk_object.GetOutput()
-    # read points using vtk_to_numpy
-    obj_points = vtk_to_numpy(polydata.GetPoints().GetData()).astype(float)
-    obj_points_transformed = instance._transform(obj_points)
-    points_array = numpy_to_vtk(obj_points_transformed[..., :3], deep=True)
-    polydata.GetPoints().SetData(points_array)
-    vtk_object.Update()
-
-    return vtk_object
 
 def read_3dfront_extra(instance):
     '''Read and transform mesh from 3d front to vtk'''
@@ -53,6 +36,7 @@ def get_point_cloud(depth_maps, cam_K, cam_RTs, rgb_imgs=None):
     '''
     point_list_canonical = []
     color_intensities = []
+    cams_T_world = []
     cam_RTs = np.copy(cam_RTs)
     if not isinstance(rgb_imgs, np.ndarray) and not isinstance(rgb_imgs, List):
         rgb_imgs = 32*np.ones([depth_maps.shape[0], depth_maps.shape[1], depth_maps.shape[2], 3], dtype=np.uint8)
@@ -78,12 +62,18 @@ def get_point_cloud(depth_maps, cam_K, cam_RTs, rgb_imgs=None):
         R[:, 1] *= -1
         R[:, 2] *= -1
 
+        # store opencv camera
+        cam_T_world = np.eye(4)
+        cam_T_world[:3, :3] = R
+        cam_T_world[:3, 3] = T
+        cams_T_world.append(cam_T_world)
+
         points_world = point_cam.dot(R.T) + T
 
         point_list_canonical.append(points_world)
         color_intensities.append(color_indices)
 
-    return {'points': point_list_canonical, 'colors': color_intensities}
+    return {'points': point_list_canonical, 'colors': color_intensities, 'cams_T_world_opencv': cams_T_world}
 
 class VIS_3DFRONT(VIS_BASE):
     def __init__(self, rooms, cam_K, cam_Ts, color_maps, depth_maps, inst_info, layout_boxes, class_names):
@@ -380,3 +370,90 @@ class VIS_3DFRONT_2D(object):
                         img_draw.polygon(verts, fill=(*color, 75))
             inst_maps.append(np.array(source_img))
         image_grid(inst_maps).show()
+
+
+class RR_3DFRONT_2D(VIS_3DFRONT_2D):
+    def __init__(self, rooms, cam_K, cam_Ts, color_maps, depth_maps, inst_info, cls_maps, **kwargs):
+        super(RR_3DFRONT_2D, self).__init__(color_maps, depth_maps, inst_info, cls_maps, **kwargs)
+
+        self.rooms = rooms
+        self._cam_K = cam_K
+        self.cam_Ts = cam_Ts
+        self.pointcloud = get_point_cloud(depth_maps, cam_K, cam_Ts, color_maps)
+
+
+        self.pts3d_xyz = self.pointcloud['points']
+        self.pts3d_rgb = self.pointcloud['colors']
+        self.cams_T_world_opencv = self.pointcloud['cams_T_world_opencv']
+
+        rr.init("vggt", spawn=False)
+        rr.connect_grpc()
+        rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Y_DOWN, timeless=True)
+
+
+    def draw_colors(self, max_num=10):
+        self.color_maps # B, H, W, 3
+
+        for i in range(self.color_maps.shape[0]):
+            rr.log(f"world/image_{i}/rgb", rr.Image(self.color_maps[i]))
+            if i > max_num:
+                break
+
+    def draw_depths(self, max_num=10):
+        for i in range(self.depth_maps.shape[0]):
+            rr.log(f"world/image_{i}/depth", rr.DepthImage(self.depth_maps[i]))
+            if i > max_num:
+                break
+            
+    def draw_pts3d(self, max_num=10):
+        for i in range(len(self.pts3d_xyz)):
+            rr.log(f"world/pointmap/pts3d_{i}", rr.Points3D(self.pts3d_xyz[i], colors=self.pts3d_rgb[i]))
+            if i > max_num:
+                break
+    
+    def draw_cameras(self, max_num=10):
+        for i in range(len(self.cams_T_world_opencv)):
+            
+            cam_T_world = self.cams_T_world_opencv[i]
+            W, H = self.color_maps[i].shape[1:3]
+            K = self._cam_K
+            rr.log(
+            f"world/image_{i}",
+            rr.Transform3D(translation=cam_T_world[:3,3], mat3x3=cam_T_world[:3,:3]),
+
+            )
+            rr.log(
+            f"world/image_{i}",
+                rr.Pinhole(
+                    resolution=[W, H],
+                    image_from_camera=K,
+                    camera_xyz=rr.ViewCoordinates.RDF,  # FIXME LUF -> RDF
+                    image_plane_distance=0.1,
+                ),
+            )
+            
+            if i > max_num:
+                break
+        
+    def add_pts3d(self, pts3d, name='pts3d'):
+        if isinstance(pts3d, o3d.geometry.PointCloud):
+            xyz = np.asarray(pts3d.points)
+            colors = np.asarray(pts3d.colors)
+
+        rr.log(f"world/{name}", rr.Points3D(xyz, colors=colors))
+
+     
+
+        
+
+
+
+    def draw_cls_maps(self, max_num=10):
+        pass
+
+    def draw_inst_maps(self, type=(), max_num=10):
+        pass
+
+    def draw_box2d_from_3d(self, max_num=10):
+        pass
+

@@ -13,7 +13,7 @@ class Threed_Front_Config(Data_Process_Config):
         super(Threed_Front_Config, self).__init__(dataset_name, proj_dir)
         self.threed_front_dir = self.root_path.joinpath('3D-FRONT')
         self.threed_future_dir = self.root_path.joinpath('3D-FUTURE-model')
-        self.model_info_path = self.threed_future_dir.joinpath('model_info_revised.json')
+        self.model_info_path = 'examples/datasets/front_3d_with_improved_mat/model_info_revised.json'
         self.layout_texture_path = self.root_path.joinpath('3D-FRONT-texture')
         self.threed_front_rendering_dir = self.root_path.joinpath('renderings')
         self.dump_dir_to_scenes = self.root_path.joinpath('preprocess').joinpath('3D-FRONT_scenes')
