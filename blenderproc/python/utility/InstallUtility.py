@@ -17,6 +17,7 @@ if version_info.major == 3:
 else:
     from urllib import urlretrieve
     import contextlib
+from urllib.request import URLopener
 
 from blenderproc.python.modules.utility.ConfigParser import ConfigParser
 from blenderproc.python.utility.SetupUtility import SetupUtility
@@ -137,7 +138,9 @@ class InstallUtility:
                                     self.pbar.finish()
 
                         print("Downloading blender from " + url)
-                        file_tmp = urlretrieve(url, None, DownloadProgressBar())[0]
+                        opener = URLopener()
+                        opener.addheader('User-Agent', 'whatever')
+                        file_tmp = opener.retrieve(url, None, DownloadProgressBar())[0]
                     except ImportError:
                         print("Progressbar for downloading, can only be shown, "
                               "when the python package \"progressbar\" is installed")
