@@ -9,13 +9,13 @@ from visualization.front3d.tools.base import THREED_FRONT_BEDROOM_FURNITURE, THR
 
 
 class Threed_Front_Config(Data_Process_Config):
-    def __init__(self, dataset_name='front_3d_with_improved_mat', proj_dir='examples'):
+    def __init__(self, render_dir, dataset_name='front_3d_with_improved_mat', proj_dir='examples'):
         super(Threed_Front_Config, self).__init__(dataset_name, proj_dir)
         self.threed_front_dir = self.root_path.joinpath('3D-FRONT')
         self.threed_future_dir = self.root_path.joinpath('3D-FUTURE-model')
         self.model_info_path = 'examples/datasets/front_3d_with_improved_mat/model_info_revised.json'
         self.layout_texture_path = self.root_path.joinpath('3D-FRONT-texture')
-        self.threed_front_rendering_dir = self.root_path.joinpath('renderings')
+        self.threed_front_rendering_dir = Path(render_dir)
         self.dump_dir_to_scenes = self.root_path.joinpath('preprocess').joinpath('3D-FRONT_scenes')
 
         self.cam_K = np.load(self.threed_front_rendering_dir.joinpath('cam_K.npy'))

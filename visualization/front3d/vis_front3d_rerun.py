@@ -26,7 +26,7 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     # initialize category labels and mapping dict for specific room type.
-    dataset_config = Threed_Front_Config()
+    dataset_config = Threed_Front_Config(args.rendering_dir)
     dataset_config.init_generic_categories_by_room_type('all')
 
     '''Read 3D-Front Data'''
@@ -172,6 +172,7 @@ if __name__ == '__main__':
 
 
     # pdb.set_trace()
+    """
     import open3d as o3d
 
     pts3d_dir = str(scene_render_dir).replace('renderings', 'pts3d')
@@ -196,3 +197,4 @@ if __name__ == '__main__':
     
 
     # scene_render_dir
+    """

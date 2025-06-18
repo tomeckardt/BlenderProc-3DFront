@@ -388,7 +388,7 @@ class RR_3DFRONT_2D(VIS_3DFRONT_2D):
 
         rr.init("vggt", spawn=False)
         rr.connect_grpc()
-        rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Y_DOWN, timeless=True)
+        rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Y_DOWN)
 
 
     def draw_colors(self, max_num=10):
